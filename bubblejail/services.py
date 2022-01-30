@@ -682,15 +682,33 @@ class Systray(BubblejailService):
 
 
 class Joystick(BubblejailService):
+    def __init__(self,
+                 allow: List[str] = EMPTY_LIST):
+        super().__init__()
+
+        self.allow = OptionStrList(
+            str_list=allow,
+            name='allow',
+            pretty_name='Allowed devices',
+            description='Allow joysticks by device name',
+        )
+
+        self.add_option(self.allow)
+
     def __iter__(self) -> ServiceGeneratorType:
         if not self.enabled:
             return
+
+        allowed = self.allow.get_value()
 
         udev = UdevContext()
         sys_class_input_path = Path('/sys/class/input')
         for input_dev in udev.list_devices(subsystem='input',
                                            sys_name='input*',
                                            ID_INPUT_JOYSTICK=1):
+            if allowed and input_dev['NAME'].strip('"') not in allowed:
+                continue
+
             # Ensure the parent device shows up in /sys
             yield DevBind(input_dev.parent.sys_path)
 
